@@ -12,7 +12,9 @@ import 'shared.dart';
 import '../utils.dart';
 
 void main() {
-  watcherFactory = (dir) => WindowsDirectoryWatcher(dir);
+  setUp(() {
+    watcherFactory = (dir) => WindowsDirectoryWatcher(dir);
+  });
 
   // TODO(grouma) - renable when https://github.com/dart-lang/sdk/issues/31760
   // is resolved.
@@ -22,5 +24,23 @@ void main() {
 
   test('DirectoryWatcher creates a WindowsDirectoryWatcher on Windows', () {
     expect(DirectoryWatcher('.'), TypeMatcher<WindowsDirectoryWatcher>());
+  });
+
+  test('non recursive watch works', () async {
+    watcherFactory = (dir) => WindowsDirectoryWatcher(dir, recursive: true);
+
+    // Make some pre-existing files.
+    createDir('a');
+    createDir('a/b');
+
+    await startWatcher(path: 'a');
+
+    // These two should not trigger an event.
+    writeFile('a/b/x.txt');
+    writeFile('a/b/y.txt');
+    // But this one should.
+    writeFile('a/z.txt');
+
+    await expectAddEvent('a/z.txt');
   });
 }

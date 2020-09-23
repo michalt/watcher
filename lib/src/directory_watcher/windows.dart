@@ -21,8 +21,9 @@ class WindowsDirectoryWatcher extends ResubscribableWatcher
   @override
   String get directory => path;
 
-  WindowsDirectoryWatcher(String directory)
-      : super(directory, () => _WindowsDirectoryWatcher(directory));
+  WindowsDirectoryWatcher(String directory, {bool recursive = true})
+      : super(directory,
+            () => _WindowsDirectoryWatcher(directory, recursive: recursive));
 }
 
 class _EventBatcher {
@@ -43,6 +44,8 @@ class _EventBatcher {
 
 class _WindowsDirectoryWatcher
     implements DirectoryWatcher, ManuallyClosedWatcher {
+  final bool _recursive;
+
   @override
   String get directory => path;
   @override
@@ -87,8 +90,9 @@ class _WindowsDirectoryWatcher
   final Set<StreamSubscription<FileSystemEntity>> _listSubscriptions =
       HashSet<StreamSubscription<FileSystemEntity>>();
 
-  _WindowsDirectoryWatcher(String path)
+  _WindowsDirectoryWatcher(String path, {bool recursive = true})
       : path = path,
+        _recursive = recursive,
         _files = PathSet(path) {
     // Before we're ready to emit events, wait for [_listDir] to complete.
     _listDir().then((_) {
@@ -380,7 +384,7 @@ class _WindowsDirectoryWatcher
     // Note: "watcher closed" exceptions do not get sent over the stream
     // returned by watch, and must be caught via a zone handler.
     runZoned(() {
-      var innerStream = Directory(path).watch(recursive: true);
+      var innerStream = Directory(path).watch(recursive: _recursive);
       _watchSubscription = innerStream.listen(_onEvent,
           onError: _eventsController.addError, onDone: _onDone);
     }, onError: (error, StackTrace stackTrace) {
@@ -403,7 +407,7 @@ class _WindowsDirectoryWatcher
 
     _files.clear();
     var completer = Completer();
-    var stream = Directory(path).list(recursive: true);
+    var stream = Directory(path).list(recursive: _recursive);
     void handleEntity(FileSystemEntity entity) {
       if (entity is! Directory) _files.add(entity.path);
     }

@@ -12,7 +12,9 @@ import 'shared.dart';
 import '../utils.dart';
 
 void main() {
-  watcherFactory = (dir) => LinuxDirectoryWatcher(dir);
+  setUp(() {
+    watcherFactory = (dir) => LinuxDirectoryWatcher(dir);
+  });
 
   sharedTests();
 
@@ -39,5 +41,23 @@ void main() {
       inAnyOrder(withPermutations(
           (i, j, k) => isModifyEvent('dir/sub/sub-$i/sub-$j/file-$k.txt')));
     });
+  });
+
+  test('non recursive watch works', () async {
+    watcherFactory = (dir) => LinuxDirectoryWatcher(dir, recursive: false);
+
+    // Make some pre-existing files.
+    createDir('a');
+    createDir('a/b');
+
+    await startWatcher(path: 'a');
+
+    // These two should not trigger an event.
+    writeFile('a/b/x.txt');
+    writeFile('a/b/y.txt');
+    // But this one should.
+    writeFile('a/z.txt');
+
+    await expectAddEvent('a/z.txt');
   });
 }

@@ -24,15 +24,19 @@ class PollingDirectoryWatcher extends ResubscribableWatcher
   /// will pause between successive polls of the directory contents. Making this
   /// shorter will give more immediate feedback at the expense of doing more IO
   /// and higher CPU usage. Defaults to one second.
-  PollingDirectoryWatcher(String directory, {Duration pollingDelay})
+  PollingDirectoryWatcher(String directory,
+      {Duration pollingDelay, bool recursive = true})
       : super(directory, () {
           return _PollingDirectoryWatcher(
-              directory, pollingDelay ?? Duration(seconds: 1));
+              directory, pollingDelay ?? Duration(seconds: 1),
+              recursive: recursive);
         });
 }
 
 class _PollingDirectoryWatcher
     implements DirectoryWatcher, ManuallyClosedWatcher {
+  final bool _recursive;
+
   @override
   String get directory => path;
   @override
@@ -78,7 +82,8 @@ class _PollingDirectoryWatcher
   /// [_lastModifieds] but not in here when a poll completes have been removed.
   final _polledFiles = <String>{};
 
-  _PollingDirectoryWatcher(this.path, this._pollingDelay) {
+  _PollingDirectoryWatcher(this.path, this._pollingDelay, {bool recursive})
+      : _recursive = recursive {
     _filesToProcess =
         AsyncQueue<String>(_processFile, onError: (e, StackTrace stackTrace) {
       if (!_events.isClosed) _events.addError(e, stackTrace);
@@ -114,7 +119,7 @@ class _PollingDirectoryWatcher
       _filesToProcess.add(null);
     }
 
-    var stream = Directory(path).list(recursive: true);
+    var stream = Directory(path).list(recursive: _recursive);
     _listSubscription = stream.listen((entity) {
       assert(!_events.isClosed);
 

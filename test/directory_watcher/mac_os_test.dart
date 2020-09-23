@@ -12,7 +12,9 @@ import 'shared.dart';
 import '../utils.dart';
 
 void main() {
-  watcherFactory = (dir) => MacOSDirectoryWatcher(dir);
+  setUp(() {
+    watcherFactory = (dir) => MacOSDirectoryWatcher(dir);
+  });
 
   sharedTests();
 
@@ -64,5 +66,23 @@ void main() {
     deleteFile('some_name.txt');
 
     await expectRemoveEvent('some_name.txt');
+  });
+
+  test('non recursive watch works', () async {
+    watcherFactory = (dir) => MacOSDirectoryWatcher(dir, recursive: false);
+
+    // Make some pre-existing files.
+    createDir('a');
+    createDir('a/b');
+
+    await startWatcher(path: 'a');
+
+    // These two should not trigger an event.
+    writeFile('a/b/x.txt');
+    writeFile('a/b/y.txt');
+    // But this one should.
+    writeFile('a/z.txt');
+
+    await expectAddEvent('a/z.txt');
   });
 }

@@ -28,12 +28,15 @@ class LinuxDirectoryWatcher extends ResubscribableWatcher
   @override
   String get directory => path;
 
-  LinuxDirectoryWatcher(String directory)
-      : super(directory, () => _LinuxDirectoryWatcher(directory));
+  LinuxDirectoryWatcher(String directory, {bool recursive = true})
+      : super(directory,
+            () => _LinuxDirectoryWatcher(directory, recursive: recursive));
 }
 
 class _LinuxDirectoryWatcher
     implements DirectoryWatcher, ManuallyClosedWatcher {
+  final bool _recursive;
+
   @override
   String get directory => _files.root;
   @override
@@ -68,7 +71,9 @@ class _LinuxDirectoryWatcher
   /// watcher is closed.
   final _subscriptions = <StreamSubscription>{};
 
-  _LinuxDirectoryWatcher(String path) : _files = PathSet(path) {
+  _LinuxDirectoryWatcher(String path, {bool recursive = true})
+      : _recursive = recursive,
+        _files = PathSet(path) {
     _nativeEvents.add(Directory(path)
         .watch()
         .transform(StreamTransformer.fromHandlers(handleDone: (sink) {
@@ -85,8 +90,9 @@ class _LinuxDirectoryWatcher
         .transform(BatchedStreamTransformer<FileSystemEvent>());
     _listen(innerStream, _onBatch, onError: _eventsController.addError);
 
-    _listen(Directory(path).list(recursive: true), (FileSystemEntity entity) {
-      if (entity is Directory) {
+    _listen(Directory(path).list(recursive: _recursive),
+        (FileSystemEntity entity) {
+      if (entity is Directory && _recursive) {
         _watchSubdir(entity.path);
       } else {
         _files.add(entity.path);
@@ -206,9 +212,11 @@ class _LinuxDirectoryWatcher
       }
     }
 
-    for (var dir in dirs) {
-      _watchSubdir(dir);
-      _addSubdir(dir);
+    if (_recursive) {
+      for (var dir in dirs) {
+        _watchSubdir(dir);
+        _addSubdir(dir);
+      }
     }
   }
 

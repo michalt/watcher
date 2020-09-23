@@ -29,12 +29,15 @@ class MacOSDirectoryWatcher extends ResubscribableWatcher
   @override
   String get directory => path;
 
-  MacOSDirectoryWatcher(String directory)
-      : super(directory, () => _MacOSDirectoryWatcher(directory));
+  MacOSDirectoryWatcher(String directory, {bool recursive = true})
+      : super(directory,
+            () => _MacOSDirectoryWatcher(directory, recursive: recursive));
 }
 
 class _MacOSDirectoryWatcher
     implements DirectoryWatcher, ManuallyClosedWatcher {
+  final bool _recursive;
+
   @override
   String get directory => path;
   @override
@@ -78,8 +81,9 @@ class _MacOSDirectoryWatcher
   /// events (see issue 14373).
   Timer _bogusEventTimer;
 
-  _MacOSDirectoryWatcher(String path)
+  _MacOSDirectoryWatcher(String path, {bool recursive = true})
       : path = path,
+        _recursive = recursive,
         _files = PathSet(path) {
     _startWatch();
 
@@ -145,7 +149,8 @@ class _MacOSDirectoryWatcher
           if (_files.containsDir(path)) continue;
 
           StreamSubscription<FileSystemEntity> subscription;
-          subscription = Directory(path).list(recursive: true).listen((entity) {
+          subscription =
+              Directory(path).list(recursive: _recursive).listen((entity) {
             if (entity is Directory) return;
             if (_files.contains(path)) return;
 
@@ -355,7 +360,7 @@ class _MacOSDirectoryWatcher
   void _startWatch() {
     // Batch the FSEvent changes together so that we can dedup events.
     var innerStream = Directory(path)
-        .watch(recursive: true)
+        .watch(recursive: _recursive)
         .transform(BatchedStreamTransformer<FileSystemEvent>());
     _watchSubscription = innerStream.listen(_onBatch,
         onError: _eventsController.addError, onDone: _onDone);
@@ -369,7 +374,7 @@ class _MacOSDirectoryWatcher
 
     _files.clear();
     var completer = Completer();
-    var stream = Directory(path).list(recursive: true);
+    var stream = Directory(path).list(recursive: _recursive);
     _initialListSubscription = stream.listen((entity) {
       if (entity is! Directory) _files.add(entity.path);
     }, onError: _emitError, onDone: completer.complete, cancelOnError: true);

@@ -9,9 +9,11 @@ import 'shared.dart';
 import '../utils.dart';
 
 void main() {
-  // Use a short delay to make the tests run quickly.
-  watcherFactory = (dir) =>
-      PollingDirectoryWatcher(dir, pollingDelay: Duration(milliseconds: 100));
+  setUp(() {
+    // Use a short delay to make the tests run quickly.
+    watcherFactory = (dir) =>
+        PollingDirectoryWatcher(dir, pollingDelay: Duration(milliseconds: 100));
+  });
 
   sharedTests();
 
@@ -22,5 +24,24 @@ void main() {
     writeFile('a.txt', contents: 'after', updateModified: false);
     writeFile('b.txt', contents: 'after');
     await expectModifyEvent('b.txt');
+  });
+
+  test('non recursive watch works', () async {
+    watcherFactory = (dir) => PollingDirectoryWatcher(dir,
+        recursive: false, pollingDelay: Duration(milliseconds: 100));
+
+    // Make some pre-existing files.
+    createDir('a');
+    createDir('a/b');
+
+    await startWatcher(path: 'a');
+
+    // These two should not trigger an event.
+    writeFile('a/b/x.txt');
+    writeFile('a/b/y.txt');
+    // But this one should.
+    writeFile('a/z.txt');
+
+    await expectAddEvent('a/z.txt');
   });
 }

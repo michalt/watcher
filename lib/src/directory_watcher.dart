@@ -27,11 +27,18 @@ abstract class DirectoryWatcher implements Watcher {
   /// shorter will give more immediate feedback at the expense of doing more IO
   /// and higher CPU usage. Defaults to one second. Ignored for non-polling
   /// watchers.
-  factory DirectoryWatcher(String directory, {Duration pollingDelay}) {
+  factory DirectoryWatcher(String directory,
+      {Duration pollingDelay, bool recursive = true}) {
     if (FileSystemEntity.isWatchSupported) {
-      if (Platform.isLinux) return LinuxDirectoryWatcher(directory);
-      if (Platform.isMacOS) return MacOSDirectoryWatcher(directory);
-      if (Platform.isWindows) return WindowsDirectoryWatcher(directory);
+      if (Platform.isLinux) {
+        return LinuxDirectoryWatcher(directory, recursive: recursive);
+      }
+      if (Platform.isMacOS) {
+        return MacOSDirectoryWatcher(directory, recursive: recursive);
+      }
+      if (Platform.isWindows) {
+        return WindowsDirectoryWatcher(directory, recursive: recursive);
+      }
     }
     return PollingDirectoryWatcher(directory, pollingDelay: pollingDelay);
   }
